@@ -1,0 +1,13 @@
+{
+    "name": "micronet",
+    "version": "0.1.0",
+    "description": "A mesh network for the BBC micro:bit.",
+    "main": "src/main.js",
+    "scripts": {
+        "main": "node src/main.js"
+    },
+    "dependencies": {
+        "minimist": "^1.2.8",
+        "serialport": "^12.0.0"
+    }
+}
