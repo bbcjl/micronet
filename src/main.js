@@ -8,6 +8,8 @@ var port = new SerialPort({
     baudRate: Number(args["baud-rate"]) || 115_200
 });
 
+console.log(protocol.parseMessage(protocol.createRequestConversation(0xAAA, 0x0BBC, 0x1234, 317, 2)));
+
 port.on("open", function() {
     var request = protocol.createRequestConversation(0xAAAA, 0x0BBC, 0x1234, 317, 2);
 

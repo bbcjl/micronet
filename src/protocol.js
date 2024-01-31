@@ -1,3 +1,13 @@
+exports.commands = {
+    CREATE_REQUEST_CONVERSATION: 0x10,
+    READY_TO_RECEIVE_PACKET: 0x11,
+    SEND_PACKET: 0x12,
+    ACK_REQUEST_RECEIVED: 0x13,
+    ACK_RESPONSE_RECEIVED: 0x14,
+    RESPOND_TO_ACK: 0x15,
+    ERROR: 0x40
+};
+
 function writeHeader(buffer, command) {
     buffer.write("mn", 0);
     buffer.writeUInt8(1, 2);
@@ -9,7 +19,7 @@ function writeHeader(buffer, command) {
 exports.createRequestConversation = function(senderId, receiverId, conversationId, size, packetCount) {
     var buffer = Buffer.alloc(14);
 
-    var offset = writeHeader(buffer, 0x10);
+    var offset = writeHeader(buffer, exports.commands.CREATE_REQUEST_CONVERSATION);
 
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
@@ -23,7 +33,7 @@ exports.createRequestConversation = function(senderId, receiverId, conversationI
 exports.readyToReceivePacket = function(senderId, receiverId, conversationId, packetIndex) {
     var buffer = Buffer.alloc(12);
 
-    var offset = writeHeader(buffer, 0x11);
+    var offset = writeHeader(buffer, exports.commands.READY_TO_RECEIVE_PACKET);
 
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
@@ -36,7 +46,7 @@ exports.readyToReceivePacket = function(senderId, receiverId, conversationId, pa
 exports.sendPacket = function(senderId, receiverId, conversationId, packetIndex, payload) {
     var buffer = Buffer.alloc(12 + payload.length);
 
-    var offset = writeHeader(buffer, 0x12);
+    var offset = writeHeader(buffer, exports.commands.SEND_PACKET);
 
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
@@ -53,7 +63,7 @@ exports.sendPacket = function(senderId, receiverId, conversationId, packetIndex,
 exports.ackRequestRecieved = function(senderId, receiverId, conversationId, size, packetCount) {
     var buffer = Buffer.alloc(14);
 
-    var offset = writeHeader(buffer, 0x13);
+    var offset = writeHeader(buffer, exports.commands.ACK_REQUEST_RECEIVED);
 
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
@@ -65,7 +75,7 @@ exports.ackRequestRecieved = function(senderId, receiverId, conversationId, size
 exports.ackResponseReceived = function(senderId, receiverId, conversationId) {
     var buffer = Buffer.alloc(10);
 
-    var offset = writeHeader(buffer, 0x14);
+    var offset = writeHeader(buffer, exports.commands.ACK_RESPONSE_RECEIVED);
 
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
@@ -90,4 +100,24 @@ exports.error = function(senderId, receiverId, errorType) {
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
     offset = buffer.writeUInt16BE(errorType, offset);
+};
+
+exports.parseMessage = function(buffer) {
+    if (buffer.toString("utf-8", 0, 2) != "mn") {
+        return new Error("Not a micro:net message");
+    }
+
+    var offset = 2;
+
+    var version = buffer.readUInt8(offset); offset += 1;
+
+    if (version != 1) {
+        return new Error("Incompatible micro:net version number");
+    }
+
+    var command = buffer.readUInt8(offset); offset += 1;
+    
+    console.log("Command:", command);
+
+    // TODO: Implement command interpretation
 };
