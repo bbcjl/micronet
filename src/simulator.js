@@ -2,6 +2,8 @@ const crypto = require("crypto");
 
 var conversations = require("./conversations");
 
+const PACKET_LOSS_CHANCE = 0.1;
+
 var manager1 = new conversations.ConversationManager(0xAAAA);
 var manager2 = new conversations.ConversationManager(0x0BBC);
 
@@ -32,13 +34,22 @@ manager1.createRequest(0x0BBC, testRequestPayload).then(function(payload) {
 
 setInterval(function() {
     if (manager1.hasMessagesFromOutbox) {
-        manager2.addMessageToInbox(manager1.getMessageFromOutbox());
-    }
+        var message = manager1.getMessageFromOutbox();
 
-    if (manager2.hasMessagesFromOutbox) {
-        manager1.addMessageToInbox(manager2.getMessageFromOutbox());
+        if (Math.random() > PACKET_LOSS_CHANCE) {
+            manager2.addMessageToInbox(message);
+        }
     }
 
     manager1.update();
+
+    if (manager2.hasMessagesFromOutbox) {
+        var message = manager2.getMessageFromOutbox();
+
+        if (Math.random() > PACKET_LOSS_CHANCE) {
+            manager1.addMessageToInbox(message);
+        }
+    }
+
     manager2.update();
-}, 50);
+}, 20);

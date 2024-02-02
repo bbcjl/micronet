@@ -21,7 +21,7 @@ exports.errorTypes = {
 
 exports.ProtocolError = class extends Error {
     constructor(errorType) {
-        super(`Protocol error (type 0x${Number(errorType).toString(16).toUpperCase()})`);
+        super(`Protocol error (type ${common.hex(errorType, 2)})`);
 
         this.name = "ProtocolError";
         this.errorType = errorType;

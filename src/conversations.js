@@ -2,6 +2,8 @@ var common = require("./common");
 var debug = require("./debug");
 var protocol = require("./protocol");
 
+exports.RESEND_INTERVAL = 100;
+
 exports.states = {
     NONE: 0,
     OUTBOUND_SEND_REQUEST: 1,
@@ -24,6 +26,8 @@ exports.ConversationManager = class {
     }
 
     addMessageToInbox(message) {
+        debug.log(`[${common.hex(this.id)}] Receive:`, message);
+
         this.inbox.push(message);
     }
 
@@ -56,7 +60,11 @@ exports.ConversationManager = class {
 
         var parsedMessage = protocol.parseMessage(message);
 
-        if (parsedMessage.command == protocol.commands.CREATE_REQUEST_CONVERSATION && parsedMessage.receiverId == this.id) {
+        if (
+            parsedMessage.command == protocol.commands.CREATE_REQUEST_CONVERSATION &&
+            parsedMessage.receiverId == this.id &&
+            !this.conversations.find((conversation) => conversation.conversationId == parsedMessage.conversationId)
+        ) {
             var conversation = new exports.InboundRequestConversation(
                 this.id,
                 parsedMessage.senderId,
@@ -81,7 +89,7 @@ exports.ConversationManager = class {
         for (var i = 0; i < this.conversations.length; i++) {
             var conversation = this.conversations[i];
 
-            if (!conversation.isOpen) {
+            if (!conversation.isOpen && parsedMessage.command != protocol.commands.ACK_RESPONSE_RECEIVED) {
                 continue;
             }
 
@@ -101,9 +109,14 @@ exports.ConversationManager = class {
         }
     }
 
+    performResends() {
+        this.conversations.forEach((conversation) => conversation.resend());
+    }
+
     update() {
         this.processNextInboxMessage();
         this.updateOutbox();
+        this.performResends();
     }
 
     createRequest(receiverId, requestPayload) {
@@ -127,14 +140,42 @@ exports.Conversation = class {
     constructor() {
         this.isOpen = true;
         this.outbox = [];
+        this.resends = [];
     }
 
     handleIncomingMessage() {
         return false;
     }
 
-    send(message) {
+    send(message, resendId = null, resendAfter = exports.RESEND_INTERVAL) {
         this.outbox.push(message);
+
+        if (resendId != null) {
+            this.resends.push({
+                message,
+                id: resendId,
+                at: Date.now() + resendAfter,
+                after: resendAfter
+            });
+        }
+    }
+
+    resend() {
+        var thisScope = this;
+
+        this.resends.forEach(function(resend) {
+            if (resend.at != null && Date.now() >= resend.at) {
+                debug.log("Resend:", resend.id);
+
+                thisScope.send(resend.message);
+
+                resend.at = Date.now() + resend.after;
+            }
+        });
+    }
+
+    clearResend(resendId) {
+        this.resends = this.resends.filter((resend) => resend.id != resendId);
     }
 };
 
@@ -174,7 +215,7 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
                 this.senderId,
                 this.receiverId,
                 this.conversationId
-            ));
+            ), "ackResponseReceived");
 
             return;
         }
@@ -184,7 +225,7 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
             this.receiverId,
             this.conversationId,
             this.responsePayloadPacketIndex
-        ));
+        ), `response_p${this.responsePayloadPacketIndex}`);
     }
 
     begin() {
@@ -194,7 +235,7 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
             this.conversationId,
             this.requestPayload.length,
             this.requestPacketCount
-        ));
+        ), "createRequestConversation");
     }
 
     handleCompletedRequest(responsePayload) {}
@@ -205,6 +246,8 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
         }
 
         if (message.command == protocol.commands.READY_TO_RECEIVE_PACKET && this.state == exports.states.OUTBOUND_SEND_REQUEST) {
+            this.clearResend("createRequestConversation");
+
             this.send(protocol.sendPacket(
                 this.senderId,
                 this.receiverId,
@@ -219,6 +262,7 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
         if (message.command == protocol.commands.ACK_REQUEST_RECEIVED && this.state == exports.states.OUTBOUND_SEND_REQUEST) {
             this.state = exports.states.OUTBOUND_RECIEVE_RESPONSE;
             this.responsePayload = Buffer.alloc(message.size, 0x00);
+            this.responsePayloadPacketIndex = 0;
 
             this.getNextResponsePacketOrAck();
 
@@ -226,7 +270,13 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
         }
 
         if (message.command == protocol.commands.SEND_PACKET && this.state == exports.states.OUTBOUND_RECIEVE_RESPONSE) {
-            var byteIndex = this.responsePayloadPacketIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
+            this.clearResend(`response_p${message.packetIndex}`);
+
+            if (message.packetIndex < this.requestPayloadPacketIndex) {
+                return true;
+            }
+
+            var byteIndex = message.packetIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
 
             for (var i = 0; i < message.payload.length; i++) {
                 if (byteIndex + i >= this.responsePayload.length) {
@@ -246,6 +296,8 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
         }
 
         if (message.command == protocol.commands.RESPOND_TO_ACK && this.state == exports.states.OUTBOUND_RECIEVE_RESPONSE) {
+            this.clearResend("ackResponseReceived");
+
             this.isOpen = false;
 
             this.handleCompletedRequest(this.responsePayload);
@@ -308,7 +360,7 @@ exports.InboundRequestConversation = class extends exports.Conversation {
             this.conversationId,
             this.responsePayload.length,
             this.responsePacketCount
-        ));
+        ), "ackRequestReceived");
     }
 
     getNextRequestPacketOrHandleRequest() {
@@ -329,7 +381,7 @@ exports.InboundRequestConversation = class extends exports.Conversation {
             this.receiverId,
             this.conversationId,
             this.requestPayloadPacketIndex
-        ));
+        ), `request_p${this.requestPayloadPacketIndex}`);
     }
 
     handleIncomingMessage(message) {
@@ -338,7 +390,13 @@ exports.InboundRequestConversation = class extends exports.Conversation {
         }
 
         if (message.command == protocol.commands.SEND_PACKET && this.state == exports.states.INBOUND_RECEIVE_REQUEST) {
-            var byteIndex = this.requestPayloadPacketIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
+            this.clearResend(`request_p${message.packetIndex}`);
+
+            if (message.packetIndex < this.requestPayloadPacketIndex) {
+                return true;
+            }
+
+            var byteIndex = message.packetIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
 
             for (var i = 0; i < message.payload.length; i++) {
                 if (byteIndex + i >= this.requestPayload.length) {
@@ -358,6 +416,8 @@ exports.InboundRequestConversation = class extends exports.Conversation {
         }
 
         if (message.command == protocol.commands.READY_TO_RECEIVE_PACKET && this.state == exports.states.INBOUND_SEND_RESPONSE) {
+            this.clearResend("ackRequestReceived");
+
             this.send(protocol.sendPacket(
                 this.senderId,
                 this.receiverId,
