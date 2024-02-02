@@ -20,19 +20,30 @@ manager.requestHandler = function(payload) {
 port.on("open", function() {
     console.log(`Modem connected; micro:net is up! (ID ${common.hex(manager.id)})`);
 
-    setInterval(function() {
-        if (manager.hasMessagesInOutbox) {
-            port.write(manager.getMessageFromOutbox());
-        }
-
-        manager.update();
-    });
+    // setInterval(function() {
+    //     port.write("mm");
+    //     port.write(Buffer.from([0x01, 0x01, 4]));
+    //     port.write("test");
+    //     manager.update();
+    // }, 1000);
 
     manager.createRequest(0x0BBC, Buffer.from("ping")).then(function(payload) {
         console.log("Received response:", payload.toString());
     });
+    // setInterval(function() {
+    //     if (manager.hasMessagesInOutbox) {
+    //         var message = manager.getMessageFromOutbox();
+
+    //         port.write("mm");
+    //         port.write(Buffer.from([0x01, 0x01, message.length]));
+    //         port.write(message);
+    //     }
+
+    //     manager.update();
+    // });
 });
 
 port.on("data", function(data) {
-    manager.addMessageToInbox(data);
+    console.log(data);
+    // manager.addMessageToInbox(data);
 });
