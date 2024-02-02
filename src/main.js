@@ -1,23 +1,34 @@
 const {SerialPort} = require("serialport");
 const args = require("minimist")(process.argv.slice(2));
 
-var protocol = require("./protocol");
+var common = require("./common");
+var conversations = require("./conversations");
 
 var port = new SerialPort({
     path: args["serial-port"] || "/dev/ttyACM0",
     baudRate: Number(args["baud-rate"]) || 115_200
 });
 
-console.log(protocol.parseMessage(protocol.createRequestConversation(0xAAA, 0x0BBC, 0x1234, 317, 2)));
+var manager = new conversations.ConversationManager();
+
+manager.requestHandler = function(payload) {
+    console.log("Received request:", payload);
+
+    return Promise.resolve(Buffer.from([0x01, 0x02, 0x03, 0x04]));
+};
 
 port.on("open", function() {
-    var request = protocol.createRequestConversation(0xAAAA, 0x0BBC, 0x1234, 317, 2);
+    console.log(`Modem connected; micro:net is up! (ID ${common.hex(manager.id)})`);
 
-    console.log(request);
+    setInterval(function() {
+        if (manager.hasMessagesInOutbox) {
+            port.write(manager.getMessageFromOutbox());
+        }
 
-    port.write(request);
+        manager.update();
+    });
 });
 
 port.on("data", function(data) {
-    process.stdout.write(data);
+    manager.addMessageToInbox(data);
 });

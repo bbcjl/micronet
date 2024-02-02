@@ -13,7 +13,7 @@ exports.states = {
 };
 
 exports.ConversationManager = class {
-    constructor(myId) {
+    constructor(myId = common.generateRandomId()) {
         this.id = myId;
 
         this.conversations = [];
@@ -21,7 +21,7 @@ exports.ConversationManager = class {
         this.outbox = [];
     }
 
-    get hasMessagesFromOutbox() {
+    get hasMessagesInOutbox() {
         return this.outbox.length > 0;
     }
 

@@ -33,7 +33,7 @@ manager1.createRequest(0x0BBC, testRequestPayload).then(function(payload) {
 });
 
 setInterval(function() {
-    if (manager1.hasMessagesFromOutbox) {
+    if (manager1.hasMessagesInOutbox) {
         var message = manager1.getMessageFromOutbox();
 
         if (Math.random() > PACKET_LOSS_CHANCE) {
@@ -43,7 +43,7 @@ setInterval(function() {
 
     manager1.update();
 
-    if (manager2.hasMessagesFromOutbox) {
+    if (manager2.hasMessagesInOutbox) {
         var message = manager2.getMessageFromOutbox();
 
         if (Math.random() > PACKET_LOSS_CHANCE) {
