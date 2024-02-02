@@ -4,7 +4,8 @@
     "description": "A mesh network for the BBC micro:bit.",
     "main": "src/main.js",
     "scripts": {
-        "main": "node src/main.js"
+        "main": "node src/main.js",
+        "simulator": "node src/simulator.js"
     },
     "dependencies": {
         "minimist": "^1.2.8",
