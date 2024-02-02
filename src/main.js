@@ -9,12 +9,12 @@ var port = new SerialPort({
     baudRate: Number(args["baud-rate"]) || 115_200
 });
 
-var manager = new conversations.ConversationManager();
+var manager = new conversations.ConversationManager(0xAAAA);
 
 manager.requestHandler = function(payload) {
-    console.log("Received request:", payload);
+    console.log("Received request:", payload.toString());
 
-    return Promise.resolve(Buffer.from([0x01, 0x02, 0x03, 0x04]));
+    return Promise.resolve(Buffer.from("pong"));
 };
 
 port.on("open", function() {
@@ -26,6 +26,10 @@ port.on("open", function() {
         }
 
         manager.update();
+    });
+
+    manager.createRequest(0x0BBC, Buffer.from("ping")).then(function(payload) {
+        console.log("Received response:", payload.toString());
     });
 });
 
