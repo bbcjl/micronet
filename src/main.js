@@ -9,26 +9,37 @@ var port = new SerialPort({
     baudRate: Number(args["baud-rate"]) || 115_200
 });
 
-var manager = new conversations.ConversationManager();
+var manager = new conversations.ConversationManager(0x0BBC);
 
 manager.requestHandler = function(payload) {
-    console.log("Received request:", payload);
+    console.log("Received request:", payload.toString());
 
-    return Promise.resolve(Buffer.from([0x01, 0x02, 0x03, 0x04]));
+    return Promise.resolve(Buffer.from("pong"));
 };
 
 port.on("open", function() {
     console.log(`Modem connected; micro:net is up! (ID ${common.hex(manager.id)})`);
 
-    setInterval(function() {
-        if (manager.hasMessagesInOutbox) {
-            port.write(manager.getMessageFromOutbox());
-        }
+    // setInterval(function() {
+    //     port.write("mm");
+    //     port.write(Buffer.from([0x01, 0x01, 4]));
+    //     port.write("test");
+    // }, 1000);
 
-        manager.update();
-    });
+    // setInterval(function() {
+    //     if (manager.hasMessagesInOutbox) {
+    //         var message = manager.getMessageFromOutbox();
+
+    //         port.write("mm");
+    //         port.write(Buffer.from([0x01, 0x01, message.length]));
+    //         port.write(message);
+    //     }
+
+    //     manager.update();
+    // });
 });
 
 port.on("data", function(data) {
-    manager.addMessageToInbox(data);
+    console.log(data);
+    // manager.addMessageToInbox(data);
 });
