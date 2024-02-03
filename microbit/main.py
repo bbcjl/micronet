@@ -1,11 +1,19 @@
 from microbit import *
+import micropython
 import radio
+
+display.show("A")
+
+while not button_a.is_pressed(): pass
+
+micropython.kbd_intr(-1)
 
 uart.init(115_200)
 
 radio.config(
     length = 251,
-    power = 7
+    power = 7,
+    channel = 16
 )
 
 display.show(Image.HAPPY)
@@ -28,6 +36,11 @@ while True:
         if byte != None:
             modemMessage.extend(byte)
 
+        if len(modemMessage) > 256:
+            modemMessage = bytearray()
+
+            continue
+
         if modemInPayload and len(modemMessage) >= modemPayloadLength:
             handleModemCommand(modemMessage[:modemPayloadLength])
 
@@ -36,17 +49,19 @@ while True:
             modemInPayload = False
             modemPayloadLength = 0
 
-        if (
-            not modemInPayload and
-            len(modemMessage) >= 5 and
-            modemMessage[0] == ord("m") and
-            modemMessage[1] == ord("m") and
-            modemMessage[2] == 1
-        ):
-            modemCommand = modemMessage[3]
-            modemInPayload = True
-            modemPayloadLength = modemMessage[4]
-            modemMessage = modemMessage[5:]
+        if not modemInPayload:
+            if (
+                len(modemMessage) >= 5 and
+                modemMessage[0] == ord("m") and
+                modemMessage[1] == ord("m") and
+                modemMessage[2] == 1
+            ):
+                modemCommand = modemMessage[3]
+                modemInPayload = True
+                modemPayloadLength = modemMessage[4]
+                modemMessage = modemMessage[5:]
+            else:
+                modemMessage = bytearray()
 
     inData = radio.receive_bytes()
     
