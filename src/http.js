@@ -28,6 +28,14 @@ exports.parseRequest = function(request, preferredHost = null) {
     headerLines.forEach(function(line) {
         var match = line.match(/^(.*?): (.*)$/);
 
+        if ([
+            "proxy-connection",
+            "upgrade-insecure-requests",
+            "if-none-match"
+        ].includes(match[1].toLowerCase())) {
+            return;
+        }
+
         if (match[1].toLowerCase() == "host" && preferredHost != null) {
             headers[match[1]] = preferredHost;
 

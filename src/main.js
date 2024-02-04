@@ -33,7 +33,7 @@ manager.requestHandler = function(payload) {
     var responseData;
     var headers = {};
 
-    return fetch(`http://${SERVER_HOST}/${request.pathname}`, {
+    return fetch(`http://${SERVER_HOST}${request.pathname}`, {
         method: request.method,
         headers: request.headers,
         body: !["GET", "HEAD"].includes(request.method) ? request.body : undefined
@@ -46,6 +46,11 @@ manager.requestHandler = function(payload) {
 
         return response.arrayBuffer();
     }).then(function(body) {
+        delete headers["connection"];
+        delete headers["keep-alive"];
+        delete headers["accept-ranges"];
+        delete headers["transfer-encoding"];
+
         var rawResponse = http.generateResponse({
             ...responseData,
             body,
@@ -53,6 +58,10 @@ manager.requestHandler = function(payload) {
         });
 
         return Promise.resolve(rawResponse);
+    }).catch(function(error) {
+        console.warn(error);
+
+        return Promise.resolve("");
     });
 };
 
