@@ -3,6 +3,7 @@ var debug = require("./debug");
 var protocol = require("./protocol");
 
 exports.RESEND_INTERVAL = 100;
+exports.MAX_RESENDS = 10;
 
 exports.states = {
     NONE: 0,
@@ -155,7 +156,8 @@ exports.Conversation = class {
                 message,
                 id: resendId,
                 at: Date.now() + resendAfter,
-                after: resendAfter
+                after: resendAfter,
+                count: 0
             });
         }
     }
@@ -170,8 +172,11 @@ exports.Conversation = class {
                 thisScope.send(resend.message);
 
                 resend.at = Date.now() + resend.after;
+                resend.count++;
             }
         });
+
+        this.resends = this.resends.filter((resend) => resend.count < exports.MAX_RESENDS);
     }
 
     clearResend(resendId) {

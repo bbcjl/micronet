@@ -1,6 +1,6 @@
 var common = require("./common");
 
-exports.MAX_PACKET_PAYLOAD_LENGTH = 242;
+exports.MAX_PACKET_PAYLOAD_LENGTH = 128;
 
 exports.commands = {
     CREATE_REQUEST_CONVERSATION: 0x10,
