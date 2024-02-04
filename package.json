@@ -8,7 +8,9 @@
         "simulator": "node src/simulator.js"
     },
     "dependencies": {
+        "connect": "^3.7.0",
         "minimist": "^1.2.8",
-        "serialport": "^12.0.0"
+        "serialport": "^12.0.0",
+        "vhost": "^3.0.2"
     }
 }
