@@ -1,3 +1,4 @@
+const fs = require("fs");
 const {SerialPort} = require("serialport");
 const connect = require("connect");
 const vhost = require("vhost");
@@ -6,9 +7,9 @@ const args = require("minimist")(process.argv.slice(2));
 const app = connect();
 
 var common = require("./common");
+var debug = require("./debug");
 var domains = require("./domains");
 var conversations = require("./conversations");
-var http = require("./http");
 
 const SPECIFIED_DOMAIN_ID = args["domain"] ? domains.toId(args["domain"]) : null;
 const SPECIFIED_ID = args["id"] ? parseInt(args["id"], 16) : null;
@@ -16,6 +17,17 @@ const WANTED_ID = SPECIFIED_DOMAIN_ID || SPECIFIED_ID;
 const PORT = args["port"] ? parseInt(args["port"]) : 2016;
 const SERVER_HOST = args["host"] || "localhost:8000";
 const INDICATORS = !!args["indicators"];
+
+var config = {};
+
+try {
+    if (args["config"] && fs.existsSync(args["config"])) {
+        config = JSON.parse(fs.readFileSync(args["config"], "utf-8"));
+    }
+} catch (e) {
+    console.error("Unable to load config");
+    process.exit(1);
+}
 
 var port = new SerialPort({
     path: args["serial-port"] || "/dev/ttyACM0",
@@ -28,43 +40,29 @@ var modemPayloadLength = 0;
 
 var managers = [new conversations.ConversationManager(WANTED_ID != null ? WANTED_ID : undefined)];
 
-managers[0].requestHandler = function(payload) {
-    var request = http.parseRequest(payload, SERVER_HOST.split("/")[0]);
+managers[0].requestHandler = conversations.requestHandlerFactory(SERVER_HOST);
 
-    var responseData;
-    var headers = {};
+(config.managers || []).forEach(function(managerConfig) {
+    var id = undefined;
 
-    return fetch(`http://${SERVER_HOST}${request.pathname}`, {
-        method: request.method,
-        headers: request.headers,
-        body: !["GET", "HEAD"].includes(request.method) ? request.body : undefined
-    }).then(function(response) {
-        responseData = response;
+    if (managerConfig["domain"]) {
+        id = domains.toId(managerConfig["domain"]);
+    } else {
+        id = managerConfig["id"];
+    }
 
-        response.headers.forEach(function(value, key) {
-            headers[key] = value;
-        });
+    if (managers.find((manager) => manager.id == id)) {
+        console.warn(`Manager with ID ${common.hex(id) + (managerConfig["domain"] ? ` (for domain \`${managerConfig["domain"]}\`)` : "")} already exists; skipping`);
+    }
 
-        return response.arrayBuffer();
-    }).then(function(body) {
-        delete headers["connection"];
-        delete headers["keep-alive"];
-        delete headers["accept-ranges"];
-        delete headers["transfer-encoding"];
+    var manager = new conversations.ConversationManager(id);
 
-        var rawResponse = http.generateResponse({
-            ...responseData,
-            body,
-            headers
-        });
+    if (managerConfig["host"]) {
+        manager.requestHandler = conversations.requestHandlerFactory(managerConfig["host"]);
+    }
 
-        return Promise.resolve(rawResponse);
-    }).catch(function(error) {
-        console.warn(error);
-
-        return Promise.resolve("");
-    });
-};
+    managers.push(manager);
+});
 
 app.use(vhost("*.micronet", function(request, response, next) {
     var rawRequest = [`GET ${new URL(request.url).pathname} HTTP/1.1`];
@@ -150,7 +148,7 @@ function ready() {
     }
 
     app.listen(PORT, function() {
-        console.log(`Modem available on port ${PORT}`);
+        console.log(`micro:net is accessible on port ${PORT}`);
     });
 }
 
@@ -199,6 +197,7 @@ port.on("data", function(data) {
 
         switch (modemCommand) {
             case 0x01:
+                debug.log(`      Receive:`, data);
                 managers.forEach((manager) => manager.addMessageToInbox(data));
                 break;
     

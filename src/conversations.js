@@ -1,6 +1,7 @@
 var common = require("./common");
 var debug = require("./debug");
 var protocol = require("./protocol");
+var http = require("./http");
 
 exports.RESEND_INTERVAL = 100;
 exports.MAX_RESENDS = 50;
@@ -32,8 +33,6 @@ exports.ConversationManager = class {
     }
 
     addMessageToInbox(message) {
-        debug.log(`[${common.hex(this.id)}] Receive:`, message);
-
         this.inbox.push(message);
     }
 
@@ -520,3 +519,43 @@ exports.InboundRequestConversation = class extends exports.Conversation {
         }
     }
 };
+
+exports.requestHandlerFactory = function(serverHost) {
+    return function(payload) {
+        var request = http.parseRequest(payload, serverHost.split("/")[0]);
+    
+        var responseData;
+        var headers = {};
+    
+        return fetch(`http://${serverHost}${request.pathname}`, {
+            method: request.method,
+            headers: request.headers,
+            body: !["GET", "HEAD"].includes(request.method) ? request.body : undefined
+        }).then(function(response) {
+            responseData = response;
+    
+            response.headers.forEach(function(value, key) {
+                headers[key] = value;
+            });
+    
+            return response.arrayBuffer();
+        }).then(function(body) {
+            delete headers["connection"];
+            delete headers["keep-alive"];
+            delete headers["accept-ranges"];
+            delete headers["transfer-encoding"];
+    
+            var rawResponse = http.generateResponse({
+                ...responseData,
+                body,
+                headers
+            });
+    
+            return Promise.resolve(rawResponse);
+        }).catch(function(error) {
+            console.warn(error);
+    
+            return Promise.resolve("");
+        });
+    };
+}
