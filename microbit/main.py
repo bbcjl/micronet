@@ -27,8 +27,10 @@ modemPayloadLength = 0
 
 messagesSent = 0
 messagesReceived = 0
+requestResponseProgress = 0
+openConversations = 0
 
-def showProgress(y, value, backwards = False):
+def showTransferProgress(y, value, backwards = False):
     iterable = range(0, 5) if not backwards else range(4, -1, -1)
 
     for x in iterable:
@@ -36,14 +38,28 @@ def showProgress(y, value, backwards = False):
 
         display.set_pixel(x, y, 9 if value % 5 == valueX else 0)
 
+def showLights(y, value, maxValue = 5):
+    for i in range(0, maxValue):
+        display.set_pixel(
+            i % 5,
+            y + (i // 5),
+            9 if i < value else 0
+        )
+
 def handleModemCommand(data):
-    global messagesSent
+    global messagesSent, requestResponseProgress, openConversations
 
     if modemCommand == 1:
         # display.show(Image.ARROW_NE)
         radio.send_bytes(data)
 
         messagesSent += 1
+
+    if modemCommand == 2:
+        requestResponseProgress = data[0]
+
+    if modemCommand == 3:
+        openConversations = data[0]
 
 while True:
     if uart.any():
@@ -88,5 +104,7 @@ while True:
         uart.write(bytearray([len(inData)]))
         uart.write(inData)
 
-    showProgress(0, messagesSent)
-    showProgress(4, messagesReceived, True)
+    showLights(0, requestResponseProgress, 10)
+    showLights(2, openConversations)
+    showTransferProgress(3, messagesSent)
+    showTransferProgress(4, messagesReceived, True)
