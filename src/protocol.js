@@ -64,9 +64,10 @@ exports.readyToReceivePacket = function(senderId, receiverId, conversationId, pa
 };
 
 exports.sendPacket = function(senderId, receiverId, conversationId, packetIndex, payload) {
-    var buffer = Buffer.alloc(12 + payload.length);
+    var buffer = Buffer.alloc(12 + payload.length + 1);
 
     var offset = writeHeader(buffer, exports.commands.SEND_PACKET);
+    var checksum = 0;
 
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
@@ -75,7 +76,10 @@ exports.sendPacket = function(senderId, receiverId, conversationId, packetIndex,
 
     for (var i = 0; i < payload.length; i++) {
         buffer[offset + i] = payload[i];
+        checksum += payload[i] * ((((i + 3) % 100) ** 2) + 1);
     }
+
+    buffer[offset + payload.length] = checksum & 0xFF;
 
     return buffer;
 };
@@ -173,7 +177,8 @@ exports.parseMessage = function(buffer) {
 
         case exports.commands.SEND_PACKET:
             data.packetIndex = buffer.readUint16BE(offset); offset += 2;
-            data.payload = buffer.subarray(offset);
+            data.payload = buffer.subarray(offset, buffer.length - 1);
+            data.checksum = buffer.readUInt8(buffer.length - 1);
 
             return data;
 

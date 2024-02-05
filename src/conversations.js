@@ -182,6 +182,14 @@ exports.Conversation = class {
     clearResend(resendId) {
         this.resends = this.resends.filter((resend) => resend.id != resendId);
     }
+
+    resetResendCount(resendId) {
+        this.resends.forEach(function(resend) {
+            if (resend.id == resendId) {
+                resend.count = 0;
+            }
+        });
+    }
 };
 
 exports.OutboundRequestConversation = class extends exports.Conversation {
@@ -275,13 +283,12 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
         }
 
         if (message.command == protocol.commands.SEND_PACKET && this.state == exports.states.OUTBOUND_RECIEVE_RESPONSE) {
-            this.clearResend(`response_p${message.packetIndex}`);
-
             if (message.packetIndex < this.requestPayloadPacketIndex) {
                 return true;
             }
 
             var byteIndex = message.packetIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
+            var checksum = 0;
 
             for (var i = 0; i < message.payload.length; i++) {
                 if (byteIndex + i >= this.responsePayload.length) {
@@ -291,11 +298,20 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
                 }
 
                 this.responsePayload[byteIndex + i] = message.payload[i];
+                checksum += message.payload[i] * ((((i + 3) % 100) ** 2) + 1);
             }
 
-            this.responsePayloadPacketIndex++;
+            if (message.checksum == (checksum & 0xFF)) {
+                this.clearResend(`response_p${message.packetIndex}`);
 
-            this.getNextResponsePacketOrAck();
+                this.responsePayloadPacketIndex++;
+
+                this.getNextResponsePacketOrAck(); 
+            } else {
+                this.resetResendCount(`request_p${message.packetIndex}`);
+
+                console.warn(`Incoming data for outbound request with conversation ID ${common.hex(this.conversationId)}: checksum does not match for packet ${common.hex(message.packetIndex)}`);
+            }
 
             return true;
         }
@@ -395,13 +411,12 @@ exports.InboundRequestConversation = class extends exports.Conversation {
         }
 
         if (message.command == protocol.commands.SEND_PACKET && this.state == exports.states.INBOUND_RECEIVE_REQUEST) {
-            this.clearResend(`request_p${message.packetIndex}`);
-
             if (message.packetIndex < this.requestPayloadPacketIndex) {
                 return true;
             }
 
             var byteIndex = message.packetIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
+            var checksum = 0;
 
             for (var i = 0; i < message.payload.length; i++) {
                 if (byteIndex + i >= this.requestPayload.length) {
@@ -411,11 +426,20 @@ exports.InboundRequestConversation = class extends exports.Conversation {
                 }
 
                 this.requestPayload[byteIndex + i] = message.payload[i];
+                checksum += message.payload[i] * ((((i + 3) % 100) ** 2) + 1);
             }
 
-            this.requestPayloadPacketIndex++;
+            if (message.checksum == (checksum & 0xFF)) {
+                this.clearResend(`request_p${message.packetIndex}`);
 
-            this.getNextRequestPacketOrHandleRequest();
+                this.requestPayloadPacketIndex++;
+
+                this.getNextRequestPacketOrHandleRequest();
+            } else {
+                this.resetResendCount(`request_p${message.packetIndex}`);
+
+                console.warn(`Incoming data for inbound request with conversation ID ${common.hex(this.conversationId)}: checksum does not match for packet ${common.hex(message.packetIndex)}`);
+            }
 
             return true;
         }
