@@ -15,7 +15,7 @@ const SPECIFIED_ID = args["id"] ? parseInt(args["id"], 16) : null;
 const WANTED_ID = SPECIFIED_DOMAIN_ID || SPECIFIED_ID;
 const PORT = args["port"] ? parseInt(args["port"]) : 2016;
 const SERVER_HOST = args["host"] || "localhost:8000";
-const UPDATE_INDICATORS = !args["disable-indicators"];
+const INDICATORS = !!args["indicators"];
 
 var port = new SerialPort({
     path: args["serial-port"] || "/dev/ttyACM0",
@@ -26,9 +26,9 @@ var dataStream = Buffer.alloc(0);
 var modemCommand = null;
 var modemPayloadLength = 0;
 
-var manager = new conversations.ConversationManager(WANTED_ID != null ? WANTED_ID : undefined);
+var managers = [new conversations.ConversationManager(WANTED_ID != null ? WANTED_ID : undefined)];
 
-manager.requestHandler = function(payload) {
+managers[0].requestHandler = function(payload) {
     var request = http.parseRequest(payload, SERVER_HOST.split("/")[0]);
 
     var responseData;
@@ -74,41 +74,45 @@ app.use(vhost("*.micronet", function(request, response, next) {
         rawRequest.push(`${headers.shift()}: ${headers.shift()}`);
     }
 
-    manager.createRequest(domains.toId(request.vhost[0]), Buffer.from(rawRequest.join("\n"))).then(function(responseData) {
+    managers[0].createRequest(domains.toId(request.vhost[0]), Buffer.from(rawRequest.join("\n"))).then(function(responseData) {
         response.socket.end(responseData);
     });
 }));
 
+var waitingForModemConnection = true;
+var handshakeInterval = null;
 var lastOpenConversationCount = 0;
 var lastConversationProgress = 0;
 var shouldClearLastValues = false;
 
-port.on("open", function() {
-    console.log(`Modem connected; micro:net is up! (ID ${common.hex(manager.id)})`);
+function ready() {
+    console.log(`Modem connected; micro:net is up! (main manager ID ${common.hex(managers[0].id)})`);
 
     setInterval(function() {
-        if (manager.hasMessagesInOutbox) {
-            var message = manager.getMessageFromOutbox();
-
-            port.write("mm");
-            port.write(Buffer.from([0x01, 0x01, message.length]));
-            port.write(message);
-        }
-
-        manager.update();
+        managers.forEach(function(manager) {
+            if (manager.hasMessagesInOutbox) {
+                var message = manager.getMessageFromOutbox();
+    
+                port.write("mm");
+                port.write(Buffer.from([0x01, 0x01, message.length]));
+                port.write(message);
+            }
+    
+            manager.update();
+        });
     });
 
-    if (UPDATE_INDICATORS) {
+    if (INDICATORS) {
         setInterval(function() {
-            if (manager.openConversationCount != lastOpenConversationCount) {
+            if (managers[0].openConversationCount != lastOpenConversationCount) {
                 port.write("mm");
-                port.write(Buffer.from([0x01, 0x03, 0x01, manager.openConversationCount]));
+                port.write(Buffer.from([0x01, 0x03, 0x01, managers[0].openConversationCount]));
         
-                lastOpenConversationCount = manager.openConversationCount;
+                lastOpenConversationCount = managers[0].openConversationCount;
                 shouldClearLastValues = true;
             }
     
-            var oldestConversation = manager.conversations.find((conversation) => conversation.isOpen && (
+            var oldestConversation = managers[0].conversations.find((conversation) => conversation.isOpen && (
                 conversation instanceof conversations.OutboundRequestConversation ||
                 conversation instanceof conversations.InboundRequestConversation
             ));
@@ -148,9 +152,33 @@ port.on("open", function() {
     app.listen(PORT, function() {
         console.log(`Modem available on port ${PORT}`);
     });
+}
+
+port.on("open", function() {
+    process.stdout.write("Waiting for modem...");
+
+    handshakeInterval = setInterval(function() {
+        port.write("@");
+        process.stdout.write(".");
+    }, 100);
 });
 
 port.on("data", function(data) {
+    if (waitingForModemConnection) {
+        console.log("");
+
+        if (data[0] != "!".charCodeAt(0)) {
+            console.warn("Invalid modem handshake data:", data);
+
+            return;
+        }
+
+        clearInterval(handshakeInterval);
+        ready();
+
+        return;
+    }
+
     dataStream = Buffer.concat([dataStream, data]);
 
     if (modemCommand == null && dataStream.length >= 5) {
@@ -169,7 +197,7 @@ port.on("data", function(data) {
 
         switch (modemCommand) {
             case 0x01:
-                manager.addMessageToInbox(data);
+                managers.forEach((manager) => manager.addMessageToInbox(data));
                 break;
     
             default:
