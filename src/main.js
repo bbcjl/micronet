@@ -133,6 +133,8 @@ port.on("open", function() {
 
     setInterval(function() {
         if (!shouldClearLastValues) {
+            shouldClearLastValues = false;
+
             return;
         }
 
