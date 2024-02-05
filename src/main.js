@@ -15,6 +15,7 @@ const SPECIFIED_ID = args["id"] ? parseInt(args["id"], 16) : null;
 const WANTED_ID = SPECIFIED_DOMAIN_ID || SPECIFIED_ID;
 const PORT = args["port"] ? parseInt(args["port"]) : 2016;
 const SERVER_HOST = args["host"] || "localhost:8000";
+const UPDATE_INDICATORS = !args["disable-indicators"];
 
 var port = new SerialPort({
     path: args["serial-port"] || "/dev/ttyACM0",
@@ -97,50 +98,52 @@ port.on("open", function() {
         manager.update();
     });
 
-    setInterval(function() {
-        if (manager.openConversationCount != lastOpenConversationCount) {
-            port.write("mm");
-            port.write(Buffer.from([0x01, 0x03, 0x01, manager.openConversationCount]));
+    if (UPDATE_INDICATORS) {
+        setInterval(function() {
+            if (manager.openConversationCount != lastOpenConversationCount) {
+                port.write("mm");
+                port.write(Buffer.from([0x01, 0x03, 0x01, manager.openConversationCount]));
+        
+                lastOpenConversationCount = manager.openConversationCount;
+                shouldClearLastValues = true;
+            }
     
-            lastOpenConversationCount = manager.openConversationCount;
-            shouldClearLastValues = true;
-        }
-
-        var oldestConversation = manager.conversations.find((conversation) => conversation.isOpen && (
-            conversation instanceof conversations.OutboundRequestConversation ||
-            conversation instanceof conversations.InboundRequestConversation
-        ));
-
-        var conversationProgress = 0;
-
-        if (oldestConversation != null) {
-            var requestPercentage = oldestConversation.requestPacketCount != 0 ? oldestConversation.requestProgress / oldestConversation.requestPacketCount : 0;
-            var responsePercentage = oldestConversation.responsePacketCount != 0 ? oldestConversation.responseProgress / oldestConversation.responsePacketCount : 0;
-
-            conversationProgress = (requestPercentage + responsePercentage) / 2;
-        } else {
-            conversationProgress = 0;
-        }
-
-        if (conversationProgress != lastConversationProgress) {
-            port.write("mm");
-            port.write(Buffer.from([0x01, 0x02, 0x01, Math.round(conversationProgress * 10)]));
+            var oldestConversation = manager.conversations.find((conversation) => conversation.isOpen && (
+                conversation instanceof conversations.OutboundRequestConversation ||
+                conversation instanceof conversations.InboundRequestConversation
+            ));
     
-            lastOpenConversationCount = conversationProgress;
-            shouldClearLastValues = true;
-        }
-    }, 500);
-
-    setInterval(function() {
-        if (!shouldClearLastValues) {
-            shouldClearLastValues = false;
-
-            return;
-        }
-
-        lastOpenConversationCount = null;
-        lastConversationProgress = null;
-    }, 2_000);
+            var conversationProgress = 0;
+    
+            if (oldestConversation != null) {
+                var requestPercentage = oldestConversation.requestPacketCount != 0 ? oldestConversation.requestProgress / oldestConversation.requestPacketCount : 0;
+                var responsePercentage = oldestConversation.responsePacketCount != 0 ? oldestConversation.responseProgress / oldestConversation.responsePacketCount : 0;
+    
+                conversationProgress = (requestPercentage + responsePercentage) / 2;
+            } else {
+                conversationProgress = 0;
+            }
+    
+            if (conversationProgress != lastConversationProgress) {
+                port.write("mm");
+                port.write(Buffer.from([0x01, 0x02, 0x01, Math.round(conversationProgress * 10)]));
+        
+                lastOpenConversationCount = conversationProgress;
+                shouldClearLastValues = true;
+            }
+        }, 500);
+    
+        setInterval(function() {
+            if (!shouldClearLastValues) {
+                shouldClearLastValues = false;
+    
+                return;
+            }
+    
+            lastOpenConversationCount = null;
+            lastConversationProgress = null;
+        }, 2_000);
+    }
 
     app.listen(PORT, function() {
         console.log(`Modem available on port ${PORT}`);
