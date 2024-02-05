@@ -173,6 +173,8 @@ port.on("data", function(data) {
             return;
         }
 
+        waitingForModemConnection = false;
+
         clearInterval(handshakeInterval);
         ready();
 
