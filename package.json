@@ -5,7 +5,14 @@
     "main": "src/main.js",
     "scripts": {
         "main": "node src/main.js",
-        "simulator": "node src/simulator.js"
+        "simulator": "node src/simulator.js",
+        "docsgen": "node tools/docsgen.js"
+    },
+    "devDependencies": {
+        "clean-css": "^5.3.3",
+        "glob": "^10.3.10",
+        "html-minifier": "^4.0.0",
+        "uglify-js": "^3.17.4"
     },
     "dependencies": {
         "connect": "^3.7.0",
