@@ -64,7 +64,15 @@ exports.ConversationManager = class {
             return;
         }
 
-        var parsedMessage = protocol.parseMessage(message);
+        var parsedMessage;
+        
+        try {
+            parsedMessage = protocol.parseMessage(message);
+        } catch (e) {
+            console.warn(e);
+
+            return;
+        }
 
         if (
             parsedMessage.command == protocol.commands.CREATE_REQUEST_CONVERSATION &&
@@ -90,8 +98,6 @@ exports.ConversationManager = class {
             return;
         }
 
-        var handled = false;
-
         for (var i = 0; i < this.conversations.length; i++) {
             var conversation = this.conversations[i];
 
@@ -109,10 +115,6 @@ exports.ConversationManager = class {
             } catch (e) {
                 console.error(e);
             }
-        }
-
-        if (!handled) {
-            console.warn(`[${common.hex(this.id)}] Message not handled by any conversation:`, message, parsedMessage);
         }
     }
 
