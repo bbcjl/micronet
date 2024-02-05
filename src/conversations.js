@@ -3,7 +3,7 @@ var debug = require("./debug");
 var protocol = require("./protocol");
 
 exports.RESEND_INTERVAL = 100;
-exports.MAX_RESENDS = 10;
+exports.MAX_RESENDS = 25;
 exports.CONVERSATION_ACTIVITY_EXPIRY = 2_000;
 
 exports.states = {
