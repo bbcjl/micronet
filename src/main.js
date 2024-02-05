@@ -129,7 +129,7 @@ port.on("open", function() {
             lastOpenConversationCount = conversationProgress;
             shouldClearLastValues = true;
         }
-    }, 200);
+    }, 500);
 
     setInterval(function() {
         if (!shouldClearLastValues) {
