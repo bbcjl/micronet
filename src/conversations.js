@@ -107,7 +107,6 @@ exports.ConversationManager = class {
 
             try {
                 if (conversation.handleIncomingMessage(parsedMessage)) {
-                    handled = true;
                     conversation.lastActive = Date.now();
 
                     break;
