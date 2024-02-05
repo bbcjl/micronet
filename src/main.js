@@ -78,6 +78,10 @@ app.use(vhost("*.micronet", function(request, response, next) {
     });
 }));
 
+var lastOpenConversationCount = 0;
+var lastConversationProgress = 0;
+var shouldClearLastValues = false;
+
 port.on("open", function() {
     console.log(`Modem connected; micro:net is up! (ID ${common.hex(manager.id)})`);
 
@@ -92,6 +96,49 @@ port.on("open", function() {
 
         manager.update();
     });
+
+    setInterval(function() {
+        if (manager.openConversationCount != lastOpenConversationCount) {
+            port.write("mm");
+            port.write(Buffer.from([0x01, 0x03, 0x01, manager.openConversationCount]));
+    
+            lastOpenConversationCount = manager.openConversationCount;
+            shouldClearLastValues = true;
+        }
+
+        var oldestConversation = manager.conversations.find((conversation) => conversation.isOpen && (
+            conversation instanceof conversations.OutboundRequestConversation ||
+            conversation instanceof conversations.InboundRequestConversation
+        ));
+
+        var conversationProgress = 0;
+
+        if (oldestConversation != null) {
+            var requestPercentage = oldestConversation.requestPacketCount != 0 ? oldestConversation.requestProgress / oldestConversation.requestPacketCount : 0;
+            var responsePercentage = oldestConversation.responsePacketCount != 0 ? oldestConversation.responseProgress / oldestConversation.responsePacketCount : 0;
+
+            conversationProgress = (requestPercentage + responsePercentage) / 2;
+        } else {
+            conversationProgress = 0;
+        }
+
+        if (conversationProgress != lastConversationProgress) {
+            port.write("mm");
+            port.write(Buffer.from([0x01, 0x02, 0x01, Math.round(conversationProgress * 10)]));
+    
+            lastOpenConversationCount = conversationProgress;
+            shouldClearLastValues = true;
+        }
+    }, 50);
+
+    setInterval(function() {
+        if (!shouldClearLastValues) {
+            return;
+        }
+
+        lastOpenConversationCount = null;
+        lastConversationProgress = null;
+    }, 2_000);
 
     app.listen(PORT, function() {
         console.log(`Modem available on port ${PORT}`);

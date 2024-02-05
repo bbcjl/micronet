@@ -4,6 +4,7 @@ var protocol = require("./protocol");
 
 exports.RESEND_INTERVAL = 100;
 exports.MAX_RESENDS = 10;
+exports.CONVERSATION_ACTIVITY_EXPIRY = 2_000;
 
 exports.states = {
     NONE: 0,
@@ -24,6 +25,10 @@ exports.ConversationManager = class {
 
     get hasMessagesInOutbox() {
         return this.outbox.length > 0;
+    }
+
+    get openConversationCount() {
+        return this.conversations.filter((conversation) => conversation.isOpen).length;
     }
 
     addMessageToInbox(message) {
@@ -97,6 +102,7 @@ exports.ConversationManager = class {
             try {
                 if (conversation.handleIncomingMessage(parsedMessage)) {
                     handled = true;
+                    conversation.lastActive = Date.now();
 
                     break;
                 }
@@ -114,10 +120,19 @@ exports.ConversationManager = class {
         this.conversations.forEach((conversation) => conversation.resend());
     }
 
+    expireInactiveConversations() {
+        this.conversations.forEach(function(conversation) {
+            if (conversation.isOpen && Date.now() - conversation.lastActive >= exports.CONVERSATION_ACTIVITY_EXPIRY) {
+                conversation.isOpen = false;
+            }
+        });
+    }
+
     update() {
         this.processNextInboxMessage();
         this.updateOutbox();
         this.performResends();
+        this.expireInactiveConversations();
     }
 
     createRequest(receiverId, requestPayload) {
@@ -142,6 +157,7 @@ exports.Conversation = class {
         this.isOpen = true;
         this.outbox = [];
         this.resends = [];
+        this.lastActive = Date.now();
     }
 
     handleIncomingMessage() {
@@ -149,6 +165,8 @@ exports.Conversation = class {
     }
 
     send(message, resendId = null, resendAfter = exports.RESEND_INTERVAL) {
+        this.lastActive = Date.now();
+
         this.outbox.push(message);
 
         if (resendId != null) {
@@ -204,6 +222,9 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
         this.conversationId = common.generateRandomId();
         this.responsePayload = null;
         this.responsePayloadPacketIndex = 0;
+
+        this.requestProgress = 0;
+        this.responseProgress = 0;
     }
 
     get requestPacketCount() {
@@ -211,6 +232,10 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
     }
 
     get responsePacketCount() {
+        if (this.responsePayload == null) {
+            return 0;
+        }
+
         return Math.ceil(this.responsePayload.length / protocol.MAX_PACKET_PAYLOAD_LENGTH);
     }
 
@@ -269,6 +294,10 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
                 this.getRequestPacketPayload(message.packetIndex)
             ));
 
+            if (message.packetIndex > this.requestProgress) {
+                this.requestProgress = message.packetIndex;
+            }
+
             return true;
         }
 
@@ -305,6 +334,10 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
                 this.clearResend(`response_p${message.packetIndex}`);
 
                 this.responsePayloadPacketIndex++;
+
+                if (message.packetIndex > this.responseProgress) {
+                    this.responseProgress = message.packetIndex;
+                }
 
                 this.getNextResponsePacketOrAck(); 
             } else {
@@ -344,6 +377,9 @@ exports.InboundRequestConversation = class extends exports.Conversation {
         this.requestPayload = Buffer.alloc(size, 0x00);
         this.requestPayloadPacketIndex = 0;
         this.responsePayload = null;
+
+        this.requestProgress = 0;
+        this.responseProgress = 0;
     }
 
     get requestPacketCount() {
@@ -351,6 +387,10 @@ exports.InboundRequestConversation = class extends exports.Conversation {
     }
 
     get responsePacketCount() {
+        if (this.responsePayload == null) {
+            return 0;
+        }
+ 
         return Math.ceil(this.responsePayload.length / protocol.MAX_PACKET_PAYLOAD_LENGTH);
     }
 
@@ -434,6 +474,10 @@ exports.InboundRequestConversation = class extends exports.Conversation {
 
                 this.requestPayloadPacketIndex++;
 
+                if (message.packetIndex > this.requestProgress) {
+                    this.requestProgress = message.packetIndex;
+                }
+
                 this.getNextRequestPacketOrHandleRequest();
             } else {
                 this.resetResendCount(`request_p${message.packetIndex}`);
@@ -454,6 +498,10 @@ exports.InboundRequestConversation = class extends exports.Conversation {
                 message.packetIndex,
                 this.getResponsePacketPayload(message.packetIndex)
             ));
+
+            if (message.packetIndex > this.responseProgress) {
+                this.responseProgress = message.packetIndex;
+            }
 
             return true;
         }
