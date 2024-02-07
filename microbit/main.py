@@ -2,13 +2,19 @@ from microbit import *
 import micropython
 import radio
 
-display.show("A")
+uart.init(115_200)
 
-while not button_a.is_pressed(): pass
+display.show("?")
+
+while True:
+    data = uart.read(1)
+
+    if data != None and data[0] == ord("@"):
+        break
+
+uart.write(b'!')
 
 micropython.kbd_intr(-1)
-
-uart.init(115_200)
 
 radio.config(
     length = 251,
@@ -16,7 +22,6 @@ radio.config(
     channel = 16
 )
 
-# display.show(Image.HAPPY)
 display.clear()
 
 inbox = []
@@ -50,7 +55,6 @@ def handleModemCommand(data):
     global messagesSent, requestResponseProgress, openConversations
 
     if modemCommand == 1:
-        # display.show(Image.ARROW_NE)
         radio.send_bytes(data)
 
         messagesSent += 1
@@ -63,10 +67,10 @@ def handleModemCommand(data):
 
 while True:
     if uart.any():
-        byte = uart.read()
+        inSerial = uart.read()
 
-        if byte != None:
-            modemMessage.extend(byte)
+        if inSerial != None:
+            modemMessage.extend(inSerial)
 
         if len(modemMessage) > 256:
             modemMessage = bytearray()
@@ -99,7 +103,6 @@ while True:
     if inData != None:
         messagesReceived += 1
 
-        # display.show(Image.ARROW_SE)
         uart.write(b'MM\x01\x01')
         uart.write(bytearray([len(inData)]))
         uart.write(inData)
