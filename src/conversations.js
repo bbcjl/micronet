@@ -319,7 +319,7 @@ exports.OutboundRequestConversation = class extends exports.Conversation {
 
         if (message.command == protocol.commands.SEND_PACKET && this.state == exports.states.OUTBOUND_RECIEVE_RESPONSE) {
             var byteIndex = message.packetIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
-            var checksum = 0;
+            var checksum = message.packetIndex * 3;
 
             for (var i = 0; i < message.payload.length; i++) {
                 if (byteIndex + i >= this.responsePayload.length) {
@@ -460,7 +460,7 @@ exports.InboundRequestConversation = class extends exports.Conversation {
 
         if (message.command == protocol.commands.SEND_PACKET && this.state == exports.states.INBOUND_RECEIVE_REQUEST) {
             var byteIndex = message.packetIndex * protocol.MAX_PACKET_PAYLOAD_LENGTH;
-            var checksum = 0;
+            var checksum = message.packetIndex * 3;
 
             for (var i = 0; i < message.payload.length; i++) {
                 if (byteIndex + i >= this.requestPayload.length) {

@@ -67,7 +67,7 @@ exports.sendPacket = function(senderId, receiverId, conversationId, packetIndex,
     var buffer = Buffer.alloc(12 + payload.length + 1);
 
     var offset = writeHeader(buffer, exports.commands.SEND_PACKET);
-    var checksum = 0;
+    var checksum = packetIndex * 3;
 
     offset = buffer.writeUInt16BE(senderId, offset);
     offset = buffer.writeUInt16BE(receiverId, offset);
