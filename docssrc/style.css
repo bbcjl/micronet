@@ -1,5 +1,9 @@
-* {
+*:not(tr *) {
     overflow-wrap: anywhere;
+}
+
+tr {
+    overflow-wrap: normal;
 }
 
 body {
@@ -67,10 +71,54 @@ pre {
     overflow: auto;
 }
 
+blockquote {
+    margin: 0;
+    margin-block: 1rem;
+    padding: 0.5rem;
+    padding-block: 1px;
+    background: #eee;
+    border-left: 0.5rem solid blue;
+}
+
+blockquote pre, blockquote code {
+    background: white;
+}
+
+table {
+    border-collapse: collapse;
+    max-width: 50rem;
+}
+
+tr:first-child {
+    border-bottom: 0.1rem solid #ccc;
+}
+
+th {
+    text-align: start;
+}
+
+td {
+    vertical-align: top;
+}
+
+th:not(:last-child), td:not(:last-child) {
+    padding-inline-end: 0.5rem;
+}
+
+abbr {
+    cursor: help;
+}
+
 main {
     flex-grow: 1;
 }
 
 footer {
     background: #eee;
+}
+
+@media (max-width: 1000px) {
+    #banner {
+        text-align: left;
+    }
 }
