@@ -50,6 +50,10 @@ details {
     margin-block: 1rem;
 }
 
+hr {
+    border: 0.1rem solid #ccc;
+}
+
 dt {
     font-weight: bold;
 }
