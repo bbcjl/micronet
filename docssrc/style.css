@@ -1,0 +1,72 @@
+* {
+    overflow-wrap: anywhere;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    font-family: sans-serif;
+    margin: 0;
+}
+
+#banner, header, main, footer {
+    padding: 0.5rem;
+    padding-inline: 10vw;
+}
+
+#banner {
+    background: yellow;
+    color: black;
+    text-align: center;
+}
+
+header {
+    background: blue;
+    color: white;
+}
+
+header nav {
+    margin-block: 1rem;
+}
+
+header a {
+    color: white;
+}
+
+header a.selected {
+    font-weight: bold;
+}
+
+header h1 a {
+    text-decoration: none;
+}
+
+nav a {
+    margin-inline-end: 0.5rem;
+}
+
+details {
+    margin-block: 1rem;
+}
+
+dt {
+    font-weight: bold;
+}
+
+pre, code {
+    background: #eee;
+}
+
+pre {
+    padding: 0.5rem;
+    overflow: auto;
+}
+
+main {
+    flex-grow: 1;
+}
+
+footer {
+    background: #eee;
+}

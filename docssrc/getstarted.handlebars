@@ -1,0 +1,38 @@
+{{>imports}}
+{{>header}}
+<main>
+    <h2>get started (modem client)</h2>
+    <p>Follow these steps if you want to start surfing micro:net on your own computer.</p>
+    <ol>
+        <li>Procure a micro:bit as a modem for your computer to connect to micro:net with. Your micro:bit must be in-range with other micro:bits that are connected to micro:net as servers.</li>
+        <li>Download the modem software from GitHub: <a href="https://github.com/bbcjl/micronet" target="_blank">bbcjl/micronet</a> (<code>git clone https://github.com/bbcjl/micronet.git</code>)</li>
+        <li>Upload the Python script at the location <code>microbit/main.py</code> to your micro:bit. You can use the <a href="https://python.microbit.org" target="_blank">micro:bit Python Editor</a> to do so.</li>
+        <li>If you haven't already, install npm to your computer. You then need to run <code>npm install</code>.</li>
+        <li>Then run <code>npm run main</code> in the <code>micronet</code> directory you downloaded from GitHub to start the modem daemon. The default serial port is <code>/dev/ttyACM0</code>.<br>You can change the serial port by running <code>npm run main -- --serial-port /dev/serialport</code>. This will open port 2016 so you can access micro:net locally. On a Mac, you can run <code>npm run main -- --serial-port /dev/cu.usbmodem*</code> to automatically find the right modem.</li>
+        <li>Change your web browser or operating system's settings to use this PAC script as a proxy to be able to access micro:net sites using the .micronet TLD: <a href="proxy.pac" target="_blank">https://bbcjl.github.io/micronet/proxy.pac</a></li>
+        <li>That's it! Try going to <a href="http://home.micronet">home.micronet</a> to test your connection to the rest of micro:net.</li>
+    </ol>
+    <h2>running a server</h2>
+    <p>Once you have set up a micro:net modem, it is pretty easy to set up a server. You first will want to have a standard web server running locally on your computer (such as by running <code>python3 -m http.server</code>). This example command exposes <strong>localhost:8000</strong> to micro:net at the domain <strong>mysite.micronet</strong> through the modem daemon:</p>
+    <pre>npm run main -- --domain mysite --host localhost:8000</pre>
+    <p>If you want to host multiple servers at once, you can create a JSON config file:</p>
+    <pre>{
+    "managers": [
+        {
+            "domain": "mysite",
+            "host": "localhost:8000"
+        },
+        {
+            "domain": "myothersite",
+            "host": "localhost:8001"
+        },
+        {
+            "domain": "mymatessite",
+            "host": "localhost:8002"
+        }
+    ]
+}</pre>
+    <p>You can then use that config file in micro:net:</p>
+    <pre>npm run main -- --config config.json</pre>
+</main>
+{{>footer}}

@@ -11,6 +11,7 @@
     "devDependencies": {
         "clean-css": "^5.3.3",
         "glob": "^10.3.10",
+        "handlebars": "^4.7.8",
         "html-minifier": "^4.0.0",
         "uglify-js": "^3.17.4"
     },

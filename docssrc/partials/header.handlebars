@@ -1,0 +1,14 @@
+<div id="banner"></div>
+<header>
+    <h1><a href="index.html">micro:net</a></h1>
+    <p>the new internet, powered by the BBC micro:bit</p>
+    <nav>
+        {{#each pages}}
+            {{#equals id ../page.id}}
+                <a href="/{{id}}.html" class="selected">{{name}}</a>
+            {{else}}
+                <a href="/{{id}}.html">{{name}}</a>
+            {{/equals}}
+        {{/each}}
+    </nav>
+</header>
