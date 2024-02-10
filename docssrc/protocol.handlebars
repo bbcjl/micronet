@@ -75,7 +75,7 @@
     return checksum &amp; 0xFF;
 }</pre>
     <h4><code>0x13</code>: acknowledge request received; request to send response</h4>
-    <p>Command data: <code>&lt;U16 senderId&gt; &lt;U16 receiverId&gt; &lt;U16 conversationId&gt; &lt;U16 size&rt; &lt;U16 packetCount&gt;</code></p>
+    <p>Command data: <code>&lt;U16 senderId&gt; &lt;U16 receiverId&gt; &lt;U16 conversationId&gt; &lt;U16 size&gt; &lt;U16 packetCount&gt;</code></p>
     <p>Sent from the endpoint with sender ID <code>senderId</code> when it has successfully received all packets pertaining to the request from <code>receiverId</code> for conversation <code>conversationId</code>, and is ready to send the response.</p>
     <p>The sending endpoint must know the size of the response data in advance. The size — in bytes — must be provided in <code>size</code>, and the <code>packetCount</code> as <code>Math.floor(size / 128)</code>.</p>
     <h4><code>0x14</code>: acknowledge response received</h4>

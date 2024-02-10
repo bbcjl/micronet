@@ -24,7 +24,7 @@
             <dt>How robust is micro:net?</dt>
             <dd>micro:net is pretty robust due to its use of lost packet resending and checksum comparisons for packet payloads; but must reliability issues (such as those resulting in garbled data) are owing to micro:net conversations getting cut short as opposed to byte mutations (which for the latter, the checksum comparisons solve), mainly due to connections timing out. We're still working on ways to improve the reliability in this aspect — at the moment by increasing the timeouts.</dd>
             <dt>What is the maximum number of micro:bits that can be connected to micro:net at the same time?</dt>
-            <dd>The theoretical maximum is 65,536 micro:bits for the V1 protocol. This is because micro:net IDs (micro:net's version of an IP address) is 16 bits long. If micro:net one day happens to overtake the internet in usage, then we'll release a V2 protocol that allows for larger micro:net IDs.</dd>
+            <dd>The theoretical maximum is 65,536 micro:bits for the V1 protocol. This is because micro:net IDs (micro:net's version of an IP address) are 16 bits long. If micro:net one day happens to overtake the internet in usage, then we'll release a V2 protocol that allows for larger micro:net IDs.</dd>
             <dt>Are communications encrypted?</dt>
             <dd>For now, communications are not encrypted between micro:bits. However, this is something that could be explored through asymmetric encryption of packet payloads. To prevent man-in-the-middle attacks, it would also be handy to employ some sort of digital signature system to verify that a micro:bit has ownership of a domain or ID.</dd>
         </dl>
